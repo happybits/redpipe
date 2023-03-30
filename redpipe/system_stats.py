@@ -9,7 +9,7 @@ ENABLE_REDPIPE_STATS = getenv('ENABLE_REDPIPE_STATS', 'false') == 'true'
 threading_local = threading.local()
 threading_local.futures_accessed = 0
 threading_local.futures_created = 0
-threading_local.futures_accessed_ids = []
+threading_local.futures_accessed_ids = set()
 @contextmanager
 def log_redpipe_stats(name: str, logger, pid):
     """
@@ -20,7 +20,7 @@ def log_redpipe_stats(name: str, logger, pid):
     else:
         threading_local.futures_accessed = 0
         threading_local.futures_created = 0
-        threading_local.futures_accessed_ids = []
+        threading_local.futures_accessed_ids = set()
         yield
         consumed = threading_local.futures_accessed / threading_local.futures_created \
             if threading_local.futures_created != 0 else 0

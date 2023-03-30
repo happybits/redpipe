@@ -190,7 +190,7 @@ class Future(object):
                 if ENABLE_REDPIPE_STATS:
                     if res and id(res) not in threading_local.futures_accessed_ids:
                         threading_local.futures_accessed += 1
-                        threading_local.futures_accessed_ids.append(id(res))
+                        threading_local.futures_accessed_ids.add(id(res))
             except AttributeError:
                 pass
 
