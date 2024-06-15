@@ -210,6 +210,21 @@ class Keyspace(object):
         with self.pipe as pipe:
             return pipe.exists(self.redis_key(name))
 
+    def evalsha(self, digest: str, numkeys: int, *keys_and_args) -> Future:
+        """
+        Run the preloaded lua script with the given SHA1 digest against the key
+        Doesn't support multi-key lua operations because
+        we wouldn't be able to know what argument to namespace.
+        Also, redis cluster doesn't really support multi-key operations.
+
+        :param digest: str SHA1 digest of script to execute
+        :param numkeys: number of keys passed to the script
+        :param keys_and_args: list of keys and args passed to script
+        :return: Future()
+        """
+        with self.pipe as pipe:
+            return pipe.evalsha(digest, numkeys, *keys_and_args)
+
     def eval(self, script: str, numkeys: int, *keys_and_args) -> Future:
         """
         Run a lua script against the key.
