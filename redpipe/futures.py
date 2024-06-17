@@ -95,13 +95,14 @@ from typing import TypeVar, Generic
 from .exceptions import ResultNotReady
 from json.encoder import JSONEncoder
 from functools import wraps
+from .system_stats import ENABLE_REDPIPE_STATS, threading_local
+
 
 __all__ = [
     'Future',
     'IS',
     'ISINSTANCE'
 ]
-
 
 def IS(instance, other):  # noqa
     """
@@ -154,6 +155,15 @@ class Future(Generic[T]):
     """
     __slots__ = ['_result']
 
+    def __init__(self):
+        # Increment the global thread_local counter for futures created.
+        try:
+            if ENABLE_REDPIPE_STATS:
+                threading_local.futures_created += 1
+        except AttributeError:
+            pass
+        super().__init__()
+
     def set(self, data: T):
         """
         Write the data into the object.
@@ -176,8 +186,19 @@ class Future(Generic[T]):
         :return: None, str, int, list, set, dict
         """
         try:
-            return self._result
-        except AttributeError:
+            res = self._result
+
+            # Increment the global thread_local counter for futures accessed.
+            try:
+                if ENABLE_REDPIPE_STATS:
+                    if res and id(res) not in threading_local.futures_accessed_ids:
+                        threading_local.futures_accessed += 1
+                        threading_local.futures_accessed_ids.add(id(res))
+            except AttributeError:
+                pass
+
+            return res
+        except AttributeError as e:
             pass
 
         raise ResultNotReady('Wait until after the pipeline executes.')
