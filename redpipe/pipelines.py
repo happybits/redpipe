@@ -43,6 +43,7 @@ from .futures import Future
 from .connections import ConnectionManager  # noqa
 from .tasks import TaskManager  # noqa
 from .exceptions import InvalidPipeline
+from .scripts import SmartScript
 
 __all__ = [
     'pipeline',
@@ -111,6 +112,27 @@ class Pipeline(object):
         :param item: str, the name of the function we are wrapping.
         :return: callable
         """
+
+        if item == 'eval_smart':
+            """
+            A special case for the eval_smart() command; the first argument to
+            this command *must* be a SmartScript object. We call the object's
+            use_evalsha() callback, and then inject an EVAL or EVALSHA command
+            as appropriate.
+            """
+            def eval_smart_command(*args, **kwargs):
+                future = Future()
+
+                s: SmartScript = args[0]
+                if s.use_evalsha():
+                    self._stack.append((SmartScript.CMD_EVALSHA,
+                                        (s.sha, *args[1:]), kwargs, future))
+                else:
+                    self._stack.append((SmartScript.CMD_EVAL,
+                                        (s.code, *args[1:]), kwargs, future))
+                return future
+
+            return eval_smart_command
 
         def command(*args, **kwargs):
             """

@@ -16,6 +16,20 @@ import redpipe.tasks
 utf8_sample = u'నేను గాజు తినగలను మరియు అలా చేసినా నాకు ఏమి ఇబ్బంది లేదు'
 
 
+class StaticEvalShaController(object):
+    def __init__(self):
+        self._use_evalsha = False
+
+    def enable(self):
+        self._use_evalsha = True
+
+    def disable(self):
+        self._use_evalsha = False
+
+    def use_evalsha(self):
+        return self._use_evalsha
+
+
 class SingleNodeRedisCluster(object):
     __slots__ = ['node', 'port', 'client']
 
@@ -164,6 +178,47 @@ class PipelineTestCase(BaseTestCase):
         p.reset()
         p.execute()
         self.assertRaises(redpipe.ResultNotReady, lambda: ref.result)
+
+    def test_eval_smart(self):
+        controller = StaticEvalShaController()
+        lua = """return redis.call("SET", KEYS[1], ARGV[1])"""
+
+        script = redpipe.register_smart_script(None,
+                                               lua, controller.use_evalsha)
+        self.assertEqual(lua, script.code)
+        self.assertRegex(script.sha, '[0-9a-f]{40}')
+        self.assertEqual(40, len(script.sha))
+
+        # check that the script works with the controller disabled (EVAL)
+        controller.disable()
+        with redpipe.autoexec() as p:
+            p.eval_smart(script, 1, "foo", "bar1")
+            foo_val = p.get("foo")
+        self.assertEqual(foo_val, b'bar1')
+
+        # check that the script works with the controller enabled (EVALSHA)
+        controller.enable()
+        with redpipe.autoexec() as p:
+            p.eval_smart(script, 1, "foo", "bar2")
+            foo_val = p.get("foo")
+        self.assertEqual(foo_val, b'bar2')
+
+        # now flush the scripts - we should get an exception because we're
+        # using EVALSHA but the script is no longer loaded
+        pipe = redpipe.ConnectionManager.get(None)
+        pipe.script_flush("SYNC")
+        pipe.execute()
+        with redpipe.pipeline() as p:
+            p.eval_smart(script, 1, "foo", "bar3")
+            self.assertRaises(redis.exceptions.NoScriptError,
+                              lambda: p.execute())
+
+        # "fall back" to EVAL by disabling the controller
+        controller.disable()
+        with redpipe.autoexec() as p:
+            p.eval_smart(script, 1, "foo", "bar4")
+            foo_val = p.get("foo")
+        self.assertEqual(foo_val, b'bar4')
 
 
 class FieldsTestCase(unittest.TestCase):
@@ -1737,6 +1792,74 @@ class DictKeysTestCase(BaseTestCase):
 
         self.assertEqual(c._parse_values(True), [True])
         self.assertEqual(c._parse_values(1), [1])
+
+
+class KeyspaceEvalSmartTestCase(BaseTestCase):
+    class Data(redpipe.Hash):
+        keyspace = 'HASH'
+
+    def test(self):
+        lua = """return redis.call("HSET", KEYS[1], ARGV[1], ARGV[2])"""
+        controller = StaticEvalShaController()
+        script = redpipe.register_smart_script(None,
+                                               lua, controller.use_evalsha)
+        self.assertEqual(lua, script.code)
+        self.assertRegex(script.sha, '[0-9a-f]{40}')
+        self.assertEqual(40, len(script.sha))
+
+        # disable the controller, i.e. use EVAL - should work
+        controller.disable()
+        with redpipe.autoexec() as pipe:
+            key = 'foo'
+            field = 'bar'
+            value = 'baz1'
+
+            data = self.Data(pipe=pipe)
+            data.eval_smart(script, 1, key, field, value)
+            new_value = data.hget(key, field)
+
+        self.assertEqual(value, new_value)
+
+        # enable the controller, i.e. use EVALSHA - should work
+        controller.enable()
+        with redpipe.autoexec() as pipe:
+            key = 'foo'
+            field = 'bar'
+            value = 'baz2'
+
+            data = self.Data(pipe=pipe)
+            data.eval_smart(script, 1, key, field, value)
+            new_value = data.hget(key, field)
+
+        self.assertEqual(value, new_value)
+
+        # now flush the scripts - we should get an exception because we're
+        # using EVALSHA but the script is no longer loaded
+        pipe = redpipe.ConnectionManager.get(None)
+        pipe.script_flush("SYNC")
+        pipe.execute()
+        with redpipe.pipeline() as pipe:
+            key = 'foo'
+            field = 'bar'
+            value = 'baz3'
+
+            data = self.Data(pipe=pipe)
+            data.eval_smart(script, 1, key, field, value)
+            self.assertRaises(redis.exceptions.NoScriptError,
+                              lambda: pipe.execute())
+
+        # "fall back" to EVAL by disabling the controller
+        controller.disable()
+        with redpipe.autoexec() as pipe:
+            key = 'foo'
+            field = 'bar'
+            value = 'baz4'
+
+            data = self.Data(pipe=pipe)
+            data.eval_smart(script, 1, key, field, value)
+            new_value = data.hget(key, field)
+
+        self.assertEqual(value, new_value)
 
 
 class StrictHashTestCase(BaseTestCase):
