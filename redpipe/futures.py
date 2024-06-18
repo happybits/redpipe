@@ -191,14 +191,14 @@ class Future(Generic[T]):
             # Increment the global thread_local counter for futures accessed.
             try:
                 if ENABLE_REDPIPE_STATS:
-                    if res and id(res) not in threading_local.futures_accessed_ids:
+                    if res and id(res) not in threading_local.futures_accessed_ids:  # noqa: E501
                         threading_local.futures_accessed += 1
                         threading_local.futures_accessed_ids.add(id(res))
             except AttributeError:
                 pass
 
             return res
-        except AttributeError as e:
+        except AttributeError:
             pass
 
         raise ResultNotReady('Wait until after the pipeline executes.')
