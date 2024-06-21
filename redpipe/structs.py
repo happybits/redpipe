@@ -175,7 +175,14 @@ class Struct(metaclass=StructMeta):
             # first we try treat the first arg as a dictionary.
             # this is if we are passing in data to be set into the redis hash.
             # if that doesn't work, we assume it must be the name of the key.
-            if isinstance(_key_or_data, str):
+
+            # TODO: maybe try this (check if MP sending futures in)
+            # if _key_or_data is None or (isinstance(_key_or_data, Future) and _key_or_data.IS(None)) \
+            #         or isinstance(_key_or_data, str):
+            if isinstance(_key_or_data, Future):
+                _key_or_data = _key_or_data.result
+
+            if _key_or_data is None or isinstance(_key_or_data, str):
                 self.key = _key_or_data
             else:
                 try:

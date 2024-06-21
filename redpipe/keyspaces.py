@@ -83,6 +83,8 @@ def _parse_values(values, extra=None) -> typing.List[Union[str, bytes]]:
     """
     # returns a single new list combining values and extra
     try:
+        if isinstance(values, Future):
+            values = values.result
         iter(values)
         # a string or bytes instance can be iterated, but indicates
         # keys wasn't passed as a list
@@ -1503,7 +1505,7 @@ class SortedSet(Keyspace):
 
     def zadd(self,
              name: str,
-             members: Union[str, typing.List[str]],
+             members: Union[str, typing.List[str], dict],
              score: float = 1.0,
              nx: bool = False,
              xx: bool = False,
@@ -1534,6 +1536,9 @@ class SortedSet(Keyspace):
 
         if incr:
             _args.append('INCR')
+
+        if isinstance(members, Future):
+            members = members.result
 
         if isinstance(members, dict):
             for member, score in members.items():
