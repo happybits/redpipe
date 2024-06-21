@@ -1543,7 +1543,10 @@ class SortedSet(Keyspace):
         if isinstance(members, dict):
             for member, score in members.items():
                 _args += [str(score), self.valueparse.encode(member)]
-        elif isinstance(members, str):
+        elif isinstance(members, list):
+            for member in members:
+                _args += [str(score), self.valueparse.encode(member)]
+        else:
             _args += [str(score), self.valueparse.encode(members)]
 
         if nx and xx:
