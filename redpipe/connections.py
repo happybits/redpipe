@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Bind instances of the redis-py or redis-py-cluster client to redpipe.
+Bind instances of the redis-py client to redpipe.
 Assign named connections to be able to talk to multiple redis servers in your
 project.
 
@@ -14,6 +14,8 @@ These functions are all you will need to call from your code:
 
 Everything else is for internal use.
 """
+import redis
+from typing import (Optional, Callable, Dict)
 from .exceptions import AlreadyConnected, InvalidPipeline
 
 __all__ = [
@@ -35,10 +37,10 @@ class ConnectionManager(object):
     * reset
 
     """
-    connections = {}
+    connections: Dict[Optional[str], Callable] = {}
 
     @classmethod
-    def get(cls, name=None):
+    def get(cls, name: Optional[str] = None) -> redis.client.Pipeline:
         """
         Get a new redis-py pipeline object or similar object.
         Called by the redpipe.pipelines module.
@@ -53,7 +55,8 @@ class ConnectionManager(object):
             raise InvalidPipeline('%s is not configured' % name)
 
     @classmethod
-    def connect(cls, pipeline_method, name=None):
+    def connect(cls, pipeline_method: Callable,
+                name: Optional[str] = None) -> None:
         """
         Low level logic to bind a callable method to a name.
         Don't call this directly unless you know what you are doing.
@@ -62,9 +65,9 @@ class ConnectionManager(object):
         :param name: str optional
         :return: None
         """
-        new_pool = pipeline_method().connection_pool
         try:
-            if cls.get(name).connection_pool != new_pool:
+            if cls.get(name).get_connection_kwargs() \
+                    != pipeline_method().get_connection_kwargs():
                 raise AlreadyConnected("can't change connection for %s" % name)
         except InvalidPipeline:
             pass
@@ -72,7 +75,7 @@ class ConnectionManager(object):
         cls.connections[name] = pipeline_method
 
     @classmethod
-    def connect_redis(cls, redis_client, name=None, transaction=False):
+    def connect_redis(cls, redis_client, name=None, transaction=False) -> None:
         """
         Store the redis connection in our connector instance.
 
@@ -80,15 +83,10 @@ class ConnectionManager(object):
 
         We call the pipeline method of the redis client.
 
-        The ``redis_client`` can be either a redis or rediscluster client.
+        The ``redis_client`` can be either a redis or redis cluster client.
         We use the interface, not the actual class.
 
         That means we can handle either one identically.
-
-        It doesn't matter if you pass in `Redis` or `StrictRedis`.
-        the interface for direct redis commands will behave indentically.
-        Keyspaces will work with either, but it presents the same interface
-        that the Redis class does, not StrictRedis.
 
         The transaction flag is a boolean value we hold on to and
         pass to the invocation of something equivalent to:
@@ -105,14 +103,12 @@ class ConnectionManager(object):
 
         **RedPipe** is about improving network round-trip efficiency.
 
-        :param redis_client: redis.StrictRedis() or redis.Redis()
+        :param redis_client: redis.Redis()
         :param name: identifier for the connection, optional
         :param transaction: bool, defaults to False
         :return: None
         """
-        connection_pool = redis_client.connection_pool
-
-        if connection_pool.connection_kwargs.get('decode_responses', False):
+        if redis_client.get_connection_kwargs().get('decode_responses', False):
             raise InvalidPipeline('decode_responses set to True')
 
         def pipeline_method():
@@ -127,7 +123,7 @@ class ConnectionManager(object):
         cls.connect(pipeline_method=pipeline_method, name=name)
 
     @classmethod
-    def disconnect(cls, name=None):
+    def disconnect(cls, name: Optional[str] = None) -> None:
         """
         remove a connection by name.
         If no name is passed in, it assumes default.
@@ -143,7 +139,7 @@ class ConnectionManager(object):
             pass
 
     @classmethod
-    def reset(cls):
+    def reset(cls) -> None:
         """
         remove all connections.
         Useful for testing scenarios.
@@ -153,7 +149,7 @@ class ConnectionManager(object):
         cls.connections = {}
 
 
-def connect_redis(redis_client, name=None, transaction=False):
+def connect_redis(redis_client, name=None, transaction=False) -> None:
     """
     Connect your redis-py instance to redpipe.
 
@@ -161,37 +157,35 @@ def connect_redis(redis_client, name=None, transaction=False):
 
     .. code:: python
 
-        redpipe.connect_redis(redis.StrictRedis(), name='users')
+        redpipe.connect_redis(redis.Redis(), name='users')
 
 
     Do this during your application bootstrapping.
 
-    You can also pass a redis-py-cluster instance to this method.
+    You can also pass a redis cluster instance to this method.
 
     .. code:: python
 
-        redpipe.connect_redis(rediscluster.StrictRedisCluster(), name='users')
+        redpipe.connect_redis(redis.RedisCluster(), name='users')
 
 
-    You are allowed to pass in either the strict or regular instance.
+    You are allowed to pass in any redis-py client instance.
 
     .. code:: python
 
-        redpipe.connect_redis(redis.StrictRedis(), name='a')
-        redpipe.connect_redis(redis.Redis(), name='b')
-        redpipe.connect_redis(rediscluster.StrictRedisCluster(...), name='c')
-        redpipe.connect_redis(rediscluster.RedisCluster(...), name='d')
+        redpipe.connect_redis(redis.Redis(), name='a')
+        redpipe.connect_redis(redis.RedisCluster(...), name='b')
 
     :param redis_client:
     :param name: nickname you want to give to your connection.
     :param transaction:
     :return:
     """
-    return ConnectionManager.connect_redis(
+    ConnectionManager.connect_redis(
         redis_client=redis_client, name=name, transaction=transaction)
 
 
-def disconnect(name=None):
+def disconnect(name: Optional[str] = None) -> None:
     """
     remove a connection by name.
     If no name is passed in, it assumes default.
@@ -207,10 +201,10 @@ def disconnect(name=None):
     :param name:
     :return: None
     """
-    return ConnectionManager.disconnect(name=name)
+    ConnectionManager.disconnect(name=name)
 
 
-def reset():
+def reset() -> None:
     """
     remove all connections.
 
@@ -227,4 +221,4 @@ def reset():
 
     :return: None
     """
-    return ConnectionManager.reset()
+    ConnectionManager.reset()

@@ -91,7 +91,7 @@ There are many more operations supported but these are the most common.
 `Let me know <https://github.com/72squared/redpipe/issues>`_ if you need
 more examples or explanation.
 """
-
+from typing import TypeVar, Generic
 from .exceptions import ResultNotReady
 from json.encoder import JSONEncoder
 from functools import wraps
@@ -139,14 +139,17 @@ def ISINSTANCE(instance, A_tuple):  # noqa
     :return:
     """
     try:
-        instance = instance._redpipe_future_result
+        instance = instance._redpipe_future_result  # noqa
     except AttributeError:
         pass
 
     return isinstance(instance, A_tuple)
 
 
-class Future(object):
+T = TypeVar('T')
+
+
+class Future(Generic[T]):
     """
     An object returned from all our Pipeline calls.
     """
@@ -161,7 +164,7 @@ class Future(object):
             pass
         super().__init__()
 
-    def set(self, data):
+    def set(self, data: T):
         """
         Write the data into the object.
         Note that I intentionally did not declare `result` in
@@ -172,10 +175,10 @@ class Future(object):
         :param data: any python object
         :return: None
         """
-        self._result = data
+        self._result: T = data  # noqa
 
     @property
-    def result(self):
+    def result(self) -> T:
         """
         Get the underlying result.
         Usually one of the data types returned by redis-py.
@@ -188,19 +191,19 @@ class Future(object):
             # Increment the global thread_local counter for futures accessed.
             try:
                 if ENABLE_REDPIPE_STATS:
-                    if res and id(res) not in threading_local.futures_accessed_ids:
+                    if res and id(res) not in threading_local.futures_accessed_ids:  # noqa: E501
                         threading_local.futures_accessed += 1
                         threading_local.futures_accessed_ids.add(id(res))
             except AttributeError:
                 pass
 
             return res
-        except AttributeError as e:
+        except AttributeError:
             pass
 
         raise ResultNotReady('Wait until after the pipeline executes.')
 
-    def IS(self, other):
+    def IS(self, other) -> bool:
         """
         Allows you to do identity comparisons on the underlying object.
 
@@ -209,7 +212,7 @@ class Future(object):
         """
         return self.result is other
 
-    def isinstance(self, other):
+    def isinstance(self, other) -> bool:
         """
         allows you to check the instance type of the underlying result.
 
@@ -224,7 +227,7 @@ class Future(object):
         """
         return id(self.result)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         Magic method in python used to override the behavor of repr(future)
 
@@ -235,7 +238,7 @@ class Future(object):
         except ResultNotReady:
             return repr(None)
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Magic method in python used to override the behavor of str(future)
 
@@ -243,7 +246,7 @@ class Future(object):
         """
         return str(self.result)
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> bool:
         """
         Magic method in python used to override the behavor of future < other
 
@@ -252,7 +255,7 @@ class Future(object):
         """
         return self.result < other
 
-    def __le__(self, other):
+    def __le__(self, other) -> bool:
         """
         Magic method in python used to override the behavor of future <= other
 
@@ -262,7 +265,7 @@ class Future(object):
         """
         return self.result <= other
 
-    def __gt__(self, other):
+    def __gt__(self, other) -> bool:
         """
         Magic method in python used to override the behavor of future > other
 
@@ -271,7 +274,7 @@ class Future(object):
         """
         return self.result > other
 
-    def __ge__(self, other):
+    def __ge__(self, other) -> bool:
         """
         Magic method in python used to override the behavor of future >= other
 
@@ -288,7 +291,7 @@ class Future(object):
         """
         return hash(self.result)
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """
         Magic method in python used to override the behavor of future == other
 
@@ -297,7 +300,7 @@ class Future(object):
         """
         return self.result == other
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         """
         Magic method in python used to override the behavor of future != other
 
@@ -306,13 +309,15 @@ class Future(object):
         """
         return self.result != other
 
-    def __nonzero__(self):
+    def __bool__(self) -> bool:
         """
         Magic method in python used to override the behavor of bool(future)
 
         :return: bool
         """
         return bool(self.result)
+
+    __nonzero__ = __bool__
 
     def __bytes__(self):
         """
@@ -321,14 +326,6 @@ class Future(object):
         :return: bytes
         """
         return bytes(self.result)
-
-    def __bool__(self):
-        """
-        Magic method in python used to coerce object: bool(future)
-
-        :return: bool
-        """
-        return bool(self.result)
 
     def __call__(self, *args, **kwargs):
         """
@@ -455,16 +452,6 @@ class Future(object):
         """
         return self.result % other
 
-    def __div__(self, other):
-        """
-        support division: result = future / 2
-        for python 2
-
-        :param other: int, float
-        :return: int, float
-        """
-        return self.result / other
-
     def __truediv__(self, other):
         """
         support division: result = future / 2
@@ -474,6 +461,8 @@ class Future(object):
         :return: int, float
         """
         return self.result / other
+
+    __div__ = __truediv__
 
     def __floordiv__(self, other):
         """
@@ -548,14 +537,6 @@ class Future(object):
         """
         return other % self.result
 
-    def __rdiv__(self, other):
-        """
-        use as divisor: result = other / future
-
-        python 2
-        """
-        return other / self.result
-
     def __rtruediv__(self, other):
         """
         use as divisor: result = other / future
@@ -563,6 +544,8 @@ class Future(object):
         python 3
         """
         return other / self.result
+
+    __rdiv__ = __rtruediv__
 
     def __rfloordiv__(self, other):
         """
@@ -674,5 +657,6 @@ def _json_default_encoder(func):
 
     return inner
 
+_jsonencoder = _json_default_encoder  # noqa
 
-JSONEncoder.default = _json_default_encoder(JSONEncoder.default)
+JSONEncoder.default = _jsonencoder(JSONEncoder.default)  # type: ignore

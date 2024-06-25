@@ -1,5 +1,28 @@
 Release Notes
 =============
+
+4.0.1 (December 28, 2022)
+-------------------------
+Modify Protocol import to allow python 3.7 to work.
+
+4.0.0 (December 27, 2022)
+-------------------------
+Add support for type hints. Remove any python 2 references.
+Remove dependency on "six" library now that only python3 is supported.
+
+
+3.0.1 (December 26, 2022)
+-------------------------
+Update the docs to reflect deprecation of redis-py-cluster.
+Use redis-py instead.
+
+
+3.0.0 (December 26, 2022)
+-------------------------
+Maintain compatibility with latest version of redis-py,
+now that it natively supports redis cluster.
+
+
 2.3.6 (October 30, 2019)
 ------------------------
 Bugfix. `enable_threads` and `disable_threads` behavior were swapped.
@@ -47,7 +70,7 @@ In python documentation it states:
   "Note For new-style classes, if __getstate__() returns a false value,
   the __setstate__() method will not be called."
 
-reference: https://docs.python.org/2/library/pickle.html
+reference: https://docs.python.org/3/library/pickle.html
 
 The fix is to return a dictionary with the result in __getstate__ and expect one
 in __setstate__ so the value never evaluates to false.
