@@ -1505,7 +1505,7 @@ class SortedSet(Keyspace):
 
     def zadd(self,
              name: str,
-             members: Union[str, typing.List[str], dict],
+             members: Union[str, typing.List[str], dict, Future],
              score: float = 1.0,
              nx: bool = False,
              xx: bool = False,
@@ -1547,7 +1547,7 @@ class SortedSet(Keyspace):
             for member in members:
                 _args += [str(score), self.valueparse.encode(member)]
         else:
-            _args += [str(score), self.valueparse.encode(members)]
+            _args += [str(score), self.valueparse.encode(str(members))]
 
         if nx and xx:
             raise InvalidOperation('cannot specify nx and xx at the same time')
