@@ -93,3 +93,4 @@ from .keyspaces import (String, HashedString, Set, List, SortedSet, Hash, HyperL
 from .exceptions import *  # noqa
 from .futures import *  # noqa
 from .tasks import *  # noqa
+from .scripts import *  # noqa

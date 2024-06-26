@@ -52,6 +52,8 @@ import hashlib
 from datetime import (timedelta, datetime)
 import typing
 from typing import (Dict, Union, Optional, Iterable, Callable, Tuple, Any)
+
+from .scripts import SmartScript
 from .pipelines import (autoexec, PipelineInterface)
 from .luascripts import lua_restorenx
 from .exceptions import InvalidOperation
@@ -209,6 +211,34 @@ class Keyspace(object):
         """
         with self.pipe as pipe:
             return pipe.exists(self.redis_key(name))
+
+    def eval_smart(self, script: SmartScript, numkeys: int,
+                   *keys_and_args) -> Future:
+        """
+        Run the given SmartScript via either eval or evalsha.  Other params
+        are the same as eval/evalsha
+        """
+        with self.pipe as pipe:
+            args = (a if i >= numkeys else self.redis_key(a) for i, a
+                    in enumerate(keys_and_args))
+            return pipe.eval_smart(script, numkeys, *args)
+
+    def evalsha(self, digest: str, numkeys: int, *keys_and_args) -> Future:
+        """
+        Run the preloaded lua script with the given SHA1 digest against the key
+        Doesn't support multi-key lua operations because
+        we wouldn't be able to know what argument to namespace.
+        Also, redis cluster doesn't really support multi-key operations.
+
+        :param digest: str SHA1 digest of script to execute
+        :param numkeys: number of keys passed to the script
+        :param keys_and_args: list of keys and args passed to script
+        :return: Future()
+        """
+        with self.pipe as pipe:
+            args = (a if i >= numkeys else self.redis_key(a) for i, a
+                    in enumerate(keys_and_args))
+            return pipe.evalsha(digest, numkeys, *args)
 
     def eval(self, script: str, numkeys: int, *keys_and_args) -> Future:
         """
