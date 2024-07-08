@@ -13,9 +13,6 @@ class SmartScript(object):
     EVALSHA dynamically
     """
 
-    CMD_EVAL = "eval"
-    CMD_EVALSHA = "evalsha"
-
     def __init__(self, code, sha, use_evalsha_cb=None):
         self.code = code
         self.sha = sha
