@@ -38,6 +38,7 @@ class ConnectionManager(object):
 
     """
     connections: Dict[Optional[str], Callable] = {}
+    clients: Dict[Optional[str], redis.Redis] = {}
 
     @classmethod
     def get(cls, name: Optional[str] = None) -> redis.client.Pipeline:
@@ -55,14 +56,30 @@ class ConnectionManager(object):
             raise InvalidPipeline('%s is not configured' % name)
 
     @classmethod
+    def get_client(cls, name: Optional[str]) -> redis.Redis:
+        """
+        Returns a low-level Redis client for the connection
+        Called by the redpipe.scripts module.
+        Don't call this directly.
+
+        :param name: str
+        :return: redis.Redis (or subclass, e.g. RedisCluster)
+        """
+        try:
+            return cls.clients[name]
+        except KeyError:
+            raise InvalidPipeline('%s is not configured' % name)
+
+    @classmethod
     def connect(cls, pipeline_method: Callable,
-                name: Optional[str] = None) -> None:
+                name: Optional[str] = None, client=None) -> None:
         """
         Low level logic to bind a callable method to a name.
         Don't call this directly unless you know what you are doing.
 
         :param pipeline_method: callable
         :param name: str optional
+        :param client: redis.Redis (or subclass, e.g. RedisCluster) optional
         :return: None
         """
         try:
@@ -73,6 +90,7 @@ class ConnectionManager(object):
             pass
 
         cls.connections[name] = pipeline_method
+        cls.clients[name] = client
 
     @classmethod
     def connect_redis(cls, redis_client, name=None, transaction=False) -> None:
@@ -120,7 +138,8 @@ class ConnectionManager(object):
             return redis_client.pipeline(transaction=transaction)
 
         # set up the connection.
-        cls.connect(pipeline_method=pipeline_method, name=name)
+        cls.connect(pipeline_method=pipeline_method, name=name,
+                    client=redis_client)
 
     @classmethod
     def disconnect(cls, name: Optional[str] = None) -> None:
@@ -135,6 +154,7 @@ class ConnectionManager(object):
         """
         try:
             del cls.connections[name]
+            del cls.clients[name]
         except KeyError:
             pass
 
@@ -147,6 +167,7 @@ class ConnectionManager(object):
         :return: None
         """
         cls.connections = {}
+        cls.clients = {}
 
 
 def connect_redis(redis_client, name=None, transaction=False) -> None:
