@@ -94,3 +94,4 @@ from .exceptions import *  # noqa
 from .futures import *  # noqa
 from .tasks import *  # noqa
 from .scripts import *  # noqa
+from .redis_cluster import *  # noqa
