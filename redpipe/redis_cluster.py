@@ -11,13 +11,15 @@ class CustomClusterPipeline(redis.cluster.ClusterPipeline):
 
     def scan(self, cursor: int = 0, match: Optional[str] = None,
              count: Optional[int] = None, **kwargs) -> Union[Awaitable, Any]:
-        options = kwargs.copy()
         shard_idx = cursor >> 48
         cursor = cursor & 0xffffffffffff
-        options['shard_idx'] = shard_idx
 
         # TODO: would be nice to be able to specify reading from replicas
         node = self.get_sorted_primaries()[shard_idx]
+
+        options = kwargs.copy()
+        options['shard_idx'] = shard_idx
+        options['target_nodes'] = [node]
 
         # skip the "blocked" parent method for scan()
         return super(redis.cluster.ClusterPipeline, self).scan(
