@@ -2,6 +2,10 @@ import redis
 import redis.commands
 import redis.cluster
 from typing import Optional, Union, Awaitable, Any
+from typing_extensions import TypeAlias
+
+
+KeyType: TypeAlias = Union[bytes, str, memoryview]
 
 
 class CustomClusterPipeline(redis.cluster.ClusterPipeline):
@@ -9,8 +13,11 @@ class CustomClusterPipeline(redis.cluster.ClusterPipeline):
         super().__init__(*args, **kwargs)
         self.cluster_response_callbacks['SCAN'] = self.intercept_scan_results
 
-    def scan(self, cursor: int = 0, match: Optional[str] = None,
-             count: Optional[int] = None, **kwargs) -> Union[Awaitable, Any]:
+    def scan(self, cursor: int = 0,
+             match: Union[KeyType, None] = None,
+             count: Optional[int] = None,
+             _type: Optional[str] = None,  # for lint/type-checking purposes
+             **kwargs) -> Union[Awaitable, Any]:
         shard_idx = cursor >> 48
         cursor = cursor & 0xffffffffffff
 
