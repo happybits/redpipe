@@ -1356,16 +1356,17 @@ class MultiNodeRedisClusterTestCase(unittest.TestCase):
                 scan_result = pipe.scan(cursor=cursor, match='*', count=1)
             cursor, keys = scan_result
             collected_keys.extend(keys)
+            if cursor == 1 << 48:
+                # start of node 1 keys; should only have scanned the keys
+                # that hash to node 0
+                self.assertEqual(set(collected_keys), {b'foo2', b'foo3'})
+                have_exhausted_first_node = True
             if cursor == 0:
                 # shouldn't finish until we've crossed a node boundary
                 self.assertTrue(have_exhausted_first_node)
                 # should have scanned all keys
                 self.assertEqual(set(collected_keys), all_keys_binary)
                 break
-            if cursor == 1 << 48:
-                # should only have scanned the keys that hash to node 0
-                self.assertEqual(set(collected_keys), {b'foo2', b'foo3'})
-                have_exhausted_first_node = True
 
         self.assertLess(total_scan_calls, 100, "too many scan iterations!")
 
