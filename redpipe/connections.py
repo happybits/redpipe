@@ -56,7 +56,7 @@ class ConnectionManager(object):
             raise InvalidPipeline('%s is not configured' % name)
 
     @classmethod
-    def get_client(cls, name: Optional[str]) -> redis.Redis:
+    def get_client(cls, name: str) -> redis.Redis:
         """
         Returns a low-level Redis client for the connection
         Called by the redpipe.scripts module.
