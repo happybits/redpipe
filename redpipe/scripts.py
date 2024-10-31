@@ -13,9 +13,6 @@ class SmartScript(object):
     EVALSHA dynamically
     """
 
-    CMD_EVAL = "eval"
-    CMD_EVALSHA = "evalsha"
-
     def __init__(self, code, sha, use_evalsha_cb=None):
         self.code = code
         self.sha = sha
@@ -41,7 +38,13 @@ def register_smart_script(conn_name, code, use_evalsha_cb):
     @param use_evalsha_cb: function - no args, returns True if EVALSHA should
                                         be used, False if EVAL should be used.
     """
-    pipe = ConnectionManager.get(conn_name)
-    pipe.script_load(code)
-    sha = pipe.execute(raise_on_error=True)[0]
+    client = ConnectionManager.get_client(conn_name)
+    if client is None:
+        # if no low-level client was passed in, then we'll try a pipeline; but
+        # this will fail if it's a ClusterPipeline
+        pipe = ConnectionManager.get(conn_name)
+        pipe.script_load(code)
+        sha = pipe.execute(raise_on_error=True)[0]
+    else:
+        sha = client.script_load(code)
     return SmartScript(code, sha, use_evalsha_cb)

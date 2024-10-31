@@ -113,6 +113,21 @@ class Pipeline(object):
         :return: callable
         """
 
+        if item == 'eval' or item == 'evalsha':
+            """
+            Special case for the eval() and evalsha() commands; the
+            RedisCluster client doesn't implement these functions, but we can
+            still send the commands by calling the underlying
+            execute_command() function
+            """
+            def eval_command(*args, **kwargs):
+                future = Future()
+                self._stack.append(('execute_command',
+                                    (item.upper(), *args), kwargs, future))
+                return future
+
+            return eval_command
+
         if item == 'eval_smart':
             """
             A special case for the eval_smart() command; the first argument to
@@ -125,11 +140,13 @@ class Pipeline(object):
 
                 s: SmartScript = args[0]
                 if s.use_evalsha():
-                    self._stack.append((SmartScript.CMD_EVALSHA,
-                                        (s.sha, *args[1:]), kwargs, future))
+                    self._stack.append(('execute_command',
+                                        ('evalsha', s.sha, *args[1:]),
+                                        kwargs, future))
                 else:
-                    self._stack.append((SmartScript.CMD_EVAL,
-                                        (s.code, *args[1:]), kwargs, future))
+                    self._stack.append(('execute_command',
+                                        ('eval', s.code, *args[1:]),
+                                        kwargs, future))
                 return future
 
             return eval_smart_command

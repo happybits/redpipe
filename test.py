@@ -11,9 +11,13 @@ import redis
 import redislite  # type: ignore
 import redpipe
 import redpipe.tasks
+from redpipe.redis_cluster import CustomRedisCluster
 
 # Tegalu: I can eat glass ...
 utf8_sample = u'నేను గాజు తినగలను మరియు అలా చేసినా నాకు ఏమి ఇబ్బంది లేదు'
+
+
+NUM_HASH_SLOTS = 16384
 
 
 class StaticEvalShaController(object):
@@ -30,10 +34,12 @@ class StaticEvalShaController(object):
         return self._use_evalsha
 
 
-class SingleNodeRedisCluster(object):
+class RedisClusterNode(object):
     __slots__ = ['node', 'port', 'client']
 
-    def __init__(self, starting_port=7000):
+    def __init__(self, starting_port=7000, slot_range=None):
+        if slot_range is None:
+            slot_range = range(0, NUM_HASH_SLOTS)
         port = starting_port
         while port < 55535:
 
@@ -52,7 +58,7 @@ class SingleNodeRedisCluster(object):
                 'port': port
             }
         )
-        self.node.execute_command('CLUSTER ADDSLOTS', *range(0, 16384))
+        self.node.execute_command('CLUSTER ADDSLOTS', *slot_range)
         for i in range(0, 100):
             try:
                 self.node.set('__test__', '1')
@@ -63,7 +69,7 @@ class SingleNodeRedisCluster(object):
 
             time.sleep(0.1)
 
-        self.client = redis.RedisCluster.from_url(
+        self.client = CustomRedisCluster.from_url(
             'redis://127.0.0.1:%d' % port)
 
     @staticmethod
@@ -87,6 +93,52 @@ class SingleNodeRedisCluster(object):
 
     def __del__(self):
         self.shutdown()
+
+    def url(self):
+        return f"redis://127.0.0.1:{self.port}"
+
+
+class MockRedisCluster(object):
+    def __init__(self, num_nodes=1):
+        if NUM_HASH_SLOTS % num_nodes != 0:
+            raise ValueError(f'num_nodes must divide into {NUM_HASH_SLOTS}')
+        slot_incr = NUM_HASH_SLOTS // num_nodes
+        self.nodes = []
+        starting_port = 7000
+        for i in range(0, num_nodes):
+            slot_start = i * slot_incr
+            slot_end = slot_start + slot_incr
+            slot_range = range(slot_start, slot_end)
+            node = RedisClusterNode(starting_port, slot_range)
+            self.nodes.append(node)
+            starting_port = node.port + 1
+
+        first_node = self.nodes[0]
+        self.client = first_node.client
+
+        if len(self.nodes) > 1:
+            for i in range(1, num_nodes):
+                node = self.nodes[i]
+                first_node.client.cluster_meet('127.0.0.1', node.port)
+
+            # give nodes time to meet each other and form the cluster
+            remaining_attempts = 10
+            while remaining_attempts > 0:
+                print('sleeping 1 sec to let nodes meet...')
+                time.sleep(1)
+
+                if all(all(other_node['connected'] for other_node
+                           in node.client.cluster_nodes().values())
+                       for node in self.nodes):
+                    return
+
+                remaining_attempts -= 1
+
+            raise Exception("cluster failed to form!")
+
+    def shutdown(self):
+        for node in self.nodes:
+            node.shutdown()
 
 
 class BaseTestCase(unittest.TestCase):
@@ -1156,7 +1208,7 @@ class ConnectTestCase(unittest.TestCase):
 class RedisClusterTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.c = SingleNodeRedisCluster()
+        cls.c = MockRedisCluster()
         cls.r = cls.c.client
         redpipe.connect_redis(cls.r)
 
@@ -1173,8 +1225,10 @@ class RedisClusterTestCase(unittest.TestCase):
     def test_basic(self):
         with redpipe.autoexec() as pipe:
             pipe.set('foo', 'bar')
-            res = pipe.get('foo')
-        self.assertEqual(res, b'bar')
+            scan_res = pipe.scan(0, match='*', count=100)
+            get_res = pipe.get('foo')
+        self.assertEqual(scan_res, (0, [b'foo']))
+        self.assertEqual(get_res, b'bar')
 
     def test_list(self):
         class Test(redpipe.List):
@@ -1250,6 +1304,72 @@ class RedisClusterTestCase(unittest.TestCase):
 
         self.assertEqual(pfadd, 1)
         self.assertEqual(pfcount, 4)
+
+
+class MultiNodeRedisClusterTestCase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.c = MockRedisCluster(num_nodes=2)
+        cls.r = CustomRedisCluster.from_url(cls.c.nodes[0].url())
+        redpipe.connect_redis(cls.r)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.r = None
+        cls.c.shutdown()
+        cls.c = None
+        redpipe.reset()
+
+    def tearDown(self):
+        for node in type(self).c.nodes:
+            node.client.flushall()
+
+    def test_basic(self):
+        with redpipe.autoexec() as pipe:
+            pipe.set('foo1', 'bar1')
+            pipe.set('foo2', 'bar2')
+            get1_res = pipe.get('foo1')  # foo1 hashes to slot 13431 (node 1)
+            get2_res = pipe.get('foo2')  # foo2 hashes to slot 1044 (node 0)
+
+        self.assertEqual(get1_res, b'bar1')
+        self.assertEqual(get2_res, b'bar2')
+
+    def test_scan(self):
+        all_keys = {
+            'foo1',  # foo1 hashes to slot 13431 (node 1)
+            'foo2',  # foo2 hashes to slot 1044 (node 0)
+            'foo3',  # foo3 hashes to slot 5173 (node 0)
+            'foo4',  # foo4 hashes to slot 9426 (node 1)
+        }
+        all_keys_binary = {k.encode('utf-8') for k in all_keys}
+        with redpipe.autoexec() as pipe:
+            for key in all_keys:
+                pipe.set(key, f'{key}_value')
+
+        collected_keys = []
+        cursor = 0
+        have_exhausted_first_node = False
+
+        total_scan_calls = 0  # just a safeguard to prevent us spinning forever
+        while total_scan_calls < 100:
+            total_scan_calls += 1
+            with redpipe.autoexec() as pipe:
+                scan_result = pipe.scan(cursor=cursor, match='*', count=1)
+            cursor, keys = scan_result
+            collected_keys.extend(keys)
+            if cursor == 1 << 48:
+                # start of node 1 keys; should only have scanned the keys
+                # that hash to node 0
+                self.assertEqual(set(collected_keys), {b'foo2', b'foo3'})
+                have_exhausted_first_node = True
+            if cursor == 0:
+                # shouldn't finish until we've crossed a node boundary
+                self.assertTrue(have_exhausted_first_node)
+                # should have scanned all keys
+                self.assertEqual(set(collected_keys), all_keys_binary)
+                break
+
+        self.assertLess(total_scan_calls, 100, "too many scan iterations!")
 
 
 class StrictStringTestCase(BaseTestCase):
