@@ -15,7 +15,8 @@ These functions are all you will need to call from your code:
 Everything else is for internal use.
 """
 import redis
-from typing import (Optional, Callable, Dict)
+from typing import (Optional, Callable, Dict, Union)
+from typing_extensions import TypeAlias
 from .exceptions import AlreadyConnected, InvalidPipeline
 
 __all__ = [
@@ -23,6 +24,9 @@ __all__ = [
     'disconnect',
     'reset'
 ]
+
+
+RedisClient: TypeAlias = Union[redis.Redis, redis.RedisCluster]
 
 
 class ConnectionManager(object):
@@ -38,7 +42,7 @@ class ConnectionManager(object):
 
     """
     connections: Dict[Optional[str], Callable] = {}
-    clients: Dict[Optional[str], redis.Redis] = {}
+    clients: Dict[Optional[str], Optional[RedisClient]] = {}
 
     @classmethod
     def get(cls, name: Optional[str] = None) -> redis.client.Pipeline:
@@ -56,14 +60,14 @@ class ConnectionManager(object):
             raise InvalidPipeline('%s is not configured' % name)
 
     @classmethod
-    def get_client(cls, name: str) -> redis.Redis:
+    def get_client(cls, name: str) -> Optional[RedisClient]:
         """
         Returns a low-level Redis client for the connection
         Called by the redpipe.scripts module.
         Don't call this directly.
 
         :param name: str
-        :return: redis.Redis (or subclass, e.g. RedisCluster)
+        :return: RedisClient (redis.Redis, RedisCluster, etc.)
         """
         try:
             return cls.clients[name]
@@ -72,14 +76,15 @@ class ConnectionManager(object):
 
     @classmethod
     def connect(cls, pipeline_method: Callable,
-                name: Optional[str] = None, client=None) -> None:
+                name: Optional[str] = None,
+                client: Optional[RedisClient] = None) -> None:
         """
         Low level logic to bind a callable method to a name.
         Don't call this directly unless you know what you are doing.
 
         :param pipeline_method: callable
         :param name: str optional
-        :param client: redis.Redis (or subclass, e.g. RedisCluster) optional
+        :param client: RedisClient (redis.Redis, RedisCluster, etc.) optional
         :return: None
         """
         try:

@@ -1321,7 +1321,8 @@ class MultiNodeRedisClusterTestCase(unittest.TestCase):
         redpipe.reset()
 
     def tearDown(self):
-        self.r.flushall()
+        for node in type(self).c.nodes:
+            node.client.flushall()
 
     def test_basic(self):
         with redpipe.autoexec() as pipe:
