@@ -4,7 +4,7 @@
 import os
 from os import path
 from setuptools import setup
-from distutils.cmd import Command
+from setuptools import Command
 
 NAME = 'redpipe'
 
@@ -58,12 +58,14 @@ setup(
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
         'Environment :: Web Environment',
         'Operating System :: POSIX'],
     license='MIT',
-    install_requires=['redis>=4.1.0'],
+    install_requires=['redis>=5.0.0'],
     tests_require=['redislite>=3.0.271'],
     include_package_data=True,
     long_description=readme + '\n\n' + history,
