@@ -10,13 +10,15 @@ RedPipe is a Python library that provides a wrapper around Redis pipelines (redi
 
 ### Testing
 - `make test` - Run the full test suite using tox
-- `tox` - Run tests across all Python environments
+- `tox` - Run tests across all Python environments (p39,p310,p311,p312 with plain/hiredis variants)
 - `python test.py` - Run tests directly
 - `tox -e lint` - Run linting and type checking only
+- `python -m coverage run --source redpipe -p test.py` - Run tests with coverage
 
 ### Linting and Type Checking
-- `flake8` - Code linting (configured in tox.ini)
+- `flake8 --exclude="./build,.venv*,.tox,dist"` - Code linting (configured in tox.ini)
 - `mypy redpipe test.py` - Type checking
+- Flake8 version: 7.1.0, MyPy version: 1.10.1
 
 ### Documentation
 - `make documentation` - Build Sphinx documentation
@@ -24,12 +26,16 @@ RedPipe is a Python library that provides a wrapper around Redis pipelines (redi
 
 ### Building and Installation
 - `make sdist` - Create source distribution
-- `make bdist` - Create binary distribution
+- `make bdist` - Create binary distribution (egg format)
 - `make install` - Install package locally
+- `make local` - Build extensions in place
 
 ### Cleanup
-- `make clean` - Remove build artifacts
-- `make cleanall` - Remove all temporary files
+- `make clean` - Remove build artifacts (dist/, build/)
+- `make cleancov` - Remove coverage files
+- `make cleanmeta` - Remove egg-info files
+- `make cleandocs` - Remove documentation build files
+- `make cleanall` - Remove all temporary files (combines all clean commands)
 
 ## Code Architecture
 
@@ -66,13 +72,14 @@ RedPipe is a Python library that provides a wrapper around Redis pipelines (redi
 ## Testing Structure
 
 **Main Test File**: `test.py` - Comprehensive test suite in a single file
-**Test Configuration**: `conftest.py` - pytest configuration
+**Test Configuration**: `conftest.py` - pytest configuration with custom port option
 **Benchmarking**: `bench.py` - Performance benchmarks
 
 ## Package Information
 
 - **Version**: Located in `redpipe/VERSION`
 - **Dependencies**: `redis>=5.0.0` (see requirements.txt)
+- **Dev Dependencies**: coverage, redislite>=3.0.271, flake8, mypy, types-redis
 - **Python Support**: 3.9+ with full Python 3.12 compatibility (see setup.py)
 - **License**: MIT
 
