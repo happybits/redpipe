@@ -37,6 +37,13 @@ RedPipe is a Python library that provides a wrapper around Redis pipelines (redi
 - `make cleandocs` - Remove documentation build files
 - `make cleanall` - Remove all temporary files (combines all clean commands)
 
+### Version Management
+- **Current Version**: Located in `redpipe/VERSION` (root `VERSION` is a symlink to this file)
+- **Version Bump Process**:
+  1. Edit version number in `redpipe/VERSION` (symlink will automatically reflect the change)
+  2. Commit with message format: "bump version to X.Y.Z"
+  3. setup.py automatically reads version from `redpipe/VERSION` at build time
+
 ## Code Architecture
 
 ### Core Components
