@@ -16,7 +16,10 @@ Everything else is for internal use.
 """
 import redis
 from typing import (Optional, Callable, Dict, Union)
-from typing_extensions import TypeAlias
+try:
+    from typing import TypeAlias  # Python 3.10+
+except ImportError:
+    from typing_extensions import TypeAlias  # Python 3.9 and below
 from .exceptions import AlreadyConnected, InvalidPipeline
 
 __all__ = [
