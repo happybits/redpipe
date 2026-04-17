@@ -14,12 +14,13 @@ These functions are all you will need to call from your code:
 
 Everything else is for internal use.
 """
+import sys
 import redis
 from typing import (Optional, Callable, Dict, Union)
-try:
-    from typing import TypeAlias  # Python 3.10+
-except ImportError:
-    from typing_extensions import TypeAlias  # Python 3.9 and below
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias
+else:
+    from typing_extensions import TypeAlias
 from .exceptions import AlreadyConnected, InvalidPipeline
 
 __all__ = [

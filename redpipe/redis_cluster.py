@@ -1,11 +1,12 @@
+import sys
 import redis
 import redis.commands
 import redis.cluster
 from typing import Optional, Union, Awaitable, Any
-try:
-    from typing import TypeAlias  # Python 3.10+
-except ImportError:
-    from typing_extensions import TypeAlias  # Python 3.9 and below
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias
+else:
+    from typing_extensions import TypeAlias
 
 
 KeyType: TypeAlias = Union[bytes, str, memoryview]

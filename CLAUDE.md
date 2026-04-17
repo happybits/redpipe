@@ -18,7 +18,7 @@ RedPipe is a Python library that provides a wrapper around Redis pipelines (redi
 ### Linting and Type Checking
 - `flake8 --exclude="./build,.venv*,.tox,dist"` - Code linting (configured in tox.ini)
 - `mypy redpipe test.py` - Type checking
-- Flake8 version: 7.1.0, MyPy version: 1.10.1
+- Flake8 version: 7.3.0, MyPy version: 1.19.1
 
 ### Documentation
 - `make documentation` - Build Sphinx documentation
