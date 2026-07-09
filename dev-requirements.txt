@@ -4,6 +4,5 @@ importlib_metadata
 flake8==7.3.0
 mypy==1.19.1
 coveralls
-types-redis
 redislite>=3.0.271
 

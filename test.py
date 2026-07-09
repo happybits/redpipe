@@ -69,8 +69,12 @@ class RedisClusterNode(object):
 
             time.sleep(0.1)
 
+        # During bootstrap each node only owns part of the slot range; the
+        # nodes are meshed together later via CLUSTER MEET. redis-py 8.0
+        # changed require_full_coverage to default True, which rejects a
+        # partially-covered node at connect time, so opt out here.
         self.client = CustomRedisCluster.from_url(
-            'redis://127.0.0.1:%d' % port)
+            'redis://127.0.0.1:%d' % port, require_full_coverage=False)
 
     @staticmethod
     def _check_port(port):

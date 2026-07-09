@@ -10,7 +10,7 @@ RedPipe is a Python library that provides a wrapper around Redis pipelines (redi
 
 ### Testing
 - `make test` - Run the full test suite using tox
-- `tox` - Run tests across all Python environments (p39,p310,p311,p312 with plain/hiredis variants)
+- `tox` - Run tests across all Python environments (p310,p311,p312,p313 with plain/hiredis variants)
 - `python test.py` - Run tests directly
 - `tox -e lint` - Run linting and type checking only
 - `python -m coverage run --source redpipe -p test.py` - Run tests with coverage
@@ -85,9 +85,9 @@ RedPipe is a Python library that provides a wrapper around Redis pipelines (redi
 ## Package Information
 
 - **Version**: Located in `redpipe/VERSION`
-- **Dependencies**: `redis>=5.0.0` (see requirements.txt)
-- **Dev Dependencies**: coverage, redislite>=3.0.271, flake8, mypy, types-redis
-- **Python Support**: 3.9+ with full Python 3.12 compatibility (see setup.py)
+- **Dependencies**: `redis>=8.0.0` (see requirements.txt)
+- **Dev Dependencies**: coverage, redislite>=3.0.271, flake8, mypy
+- **Python Support**: 3.10+ with Python 3.13 support (see setup.py)
 - **License**: MIT
 
 ## Development Notes

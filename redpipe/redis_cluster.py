@@ -1,12 +1,6 @@
-import sys
 import redis
-import redis.commands
 import redis.cluster
-from typing import Optional, Union, Awaitable, Any
-if sys.version_info >= (3, 10):
-    from typing import TypeAlias
-else:
-    from typing_extensions import TypeAlias
+from typing import Optional, Union, Any, TypeAlias
 
 
 KeyType: TypeAlias = Union[bytes, str, memoryview]
@@ -30,7 +24,7 @@ class CustomClusterPipeline(redis.cluster.ClusterPipeline):
              match: Union[KeyType, None] = None,
              count: Optional[int] = None,
              _type: Optional[str] = None,  # for lint/type-checking purposes
-             **kwargs) -> Union[Awaitable, Any]:
+             **kwargs) -> Any:
         shard_idx = cursor >> NODE_IDX_OFFSET_BITS
         cursor = cursor & CURSOR_MASK
 
@@ -72,14 +66,20 @@ class CustomRedisCluster(redis.RedisCluster):
         super().__init__(*args, **kwargs)
 
     def pipeline(self, transaction=None, shard_hint=None):
+        if shard_hint:
+            raise redis.RedisClusterException(
+                "shard_hint is deprecated in cluster mode")
         return CustomClusterPipeline(
             nodes_manager=self.nodes_manager,
             commands_parser=self.commands_parser,
             startup_nodes=self.nodes_manager.startup_nodes,
             result_callbacks=self.result_callbacks,
             cluster_response_callbacks=self.cluster_response_callbacks,
-            cluster_error_retry_attempts=self.cluster_error_retry_attempts,
             read_from_replicas=self.read_from_replicas,
+            load_balancing_strategy=self.load_balancing_strategy,
             reinitialize_steps=self.reinitialize_steps,
+            retry=self.retry,
             lock=self._lock,
+            transaction=transaction,
+            event_dispatcher=self._event_dispatcher,
         )

@@ -31,13 +31,7 @@ behave very differently.
 pipeline they wrap. This could be another `NestedPipeline` object, or
 a Pipeline() object.
 """
-from typing import (Union, Optional, Callable, Dict, List, Tuple)
-
-# python 3.7 compatibility change
-try:
-    from typing import Protocol
-except ImportError:
-    from typing_extensions import Protocol  # type: ignore
+from typing import (Union, Optional, Callable, Dict, List, Tuple, Protocol)
 
 from .futures import Future
 from .connections import ConnectionManager  # noqa

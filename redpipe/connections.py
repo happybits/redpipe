@@ -14,13 +14,8 @@ These functions are all you will need to call from your code:
 
 Everything else is for internal use.
 """
-import sys
 import redis
-from typing import (Optional, Callable, Dict, Union)
-if sys.version_info >= (3, 10):
-    from typing import TypeAlias
-else:
-    from typing_extensions import TypeAlias
+from typing import (Optional, Callable, Dict, Union, TypeAlias)
 from .exceptions import AlreadyConnected, InvalidPipeline
 
 __all__ = [

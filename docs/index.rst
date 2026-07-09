@@ -153,7 +153,7 @@ You can see everything.
 .. |Version| image:: https://badge.fury.io/py/redpipe.svg
     :target: https://badge.fury.io/py/redpipe
 
-.. |Python| image:: https://img.shields.io/badge/python-3.8,3.9,pypy3-blue.svg
+.. |Python| image:: https://img.shields.io/badge/python-3.10,3.11,3.12,3.13,pypy3-blue.svg
     :target:  https://pypi.python.org/pypi/redpipe/
 
 .. _report any issues: https://github.com/72squared/redpipe/issues

@@ -16,7 +16,7 @@ Rewrite your existing application calls via *redis-py* into efficient batches wi
 Requirements
 ------------
 
-The *redpipe* module requires Python 2.7 or higher.
+The *redpipe* module requires Python 3.10 or higher.
 
 
 Installation

@@ -1,6 +1,15 @@
 Release Notes
 =============
 
+6.0.0 (July 8, 2026)
+--------------------
+Upgrade to redis-py 8.0. Now requires Python 3.10+ (drops Python 3.9).
+Fix ``CustomRedisCluster.pipeline()`` for the redis-py 8.0 cluster API
+(the unified ``retry`` object replaces ``cluster_error_retry_attempts``).
+Add Python 3.13 to the supported and tested versions.
+Drop the redundant ``types-redis`` dev dependency (redis-py now ships ``py.typed``).
+
+
 4.0.1 (December 28, 2022)
 -------------------------
 Modify Protocol import to allow python 3.7 to work.
